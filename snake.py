@@ -2,7 +2,8 @@ import pygame, random, math, time, datetime, copy
 
 SCALE = [10, 10]
 RELSIZE = [50, 50]
-screen_width, screen_height = (RELSIZE[0]+1)*SCALE[1], (RELSIZE[1]+1)*SCALE[0]
+screenf = None
+screen_width, screen_height = (RELSIZE[0]+1)*SCALE[0], (RELSIZE[1]+1)*SCALE[1]
 
 LOST = False
 
@@ -95,7 +96,7 @@ class Snake():
         return False
 
     def update(self, apple, move=-1):
-        global LOST
+        global LOST, screenf, RELSIZE, screen_width,screen_height
         if move != -1:
             self.direction = move
         else:
@@ -121,8 +122,29 @@ class Snake():
 
         if self.collideTail():
             LOST = True
-        elif self.pos[0] < 0 or self.pos[1] < 0 or self.pos[0] > RELSIZE[0] or self.pos[1] > RELSIZE[1]:
-            LOST = True
+        '''if not self.sim:
+            if self.pos[0] < 0:
+                RELSIZE = [RELSIZE[0]+1, RELSIZE[1]]
+                screen_width, screen_height = (RELSIZE[0]+1)*SCALE[0], (RELSIZE[1]+1)*SCALE[1]
+                screenf = pygame.display.set_mode([screen_width, screen_height])
+                self.pos[0] += 1
+                for i,t in enumerate(self.tail):
+                    self.tail[i][0] += 1
+            elif self.pos[1] < 0:
+                RELSIZE = [RELSIZE[0], RELSIZE[1]+1]
+                screen_width, screen_height = (RELSIZE[0]+1)*SCALE[0], (RELSIZE[1]+1)*SCALE[1]
+                screenf = pygame.display.set_mode([screen_width, screen_height])
+                self.pos[1] += 1
+                for i,t in enumerate(self.tail):
+                    self.tail[i][1] += 1
+            elif self.pos[0] > RELSIZE[0]:
+                RELSIZE = [RELSIZE[0]+1, RELSIZE[1]]
+                screen_width, screen_height = (RELSIZE[0]+1)*SCALE[0], (RELSIZE[1]+1)*SCALE[1]
+                screenf = pygame.display.set_mode([screen_width, screen_height])
+            elif self.pos[1] > RELSIZE[1]:
+                RELSIZE = [RELSIZE[0], RELSIZE[1]+1]
+                screen_width, screen_height = (RELSIZE[0]+1)*SCALE[0], (RELSIZE[1]+1)*SCALE[1]
+                screenf = pygame.display.set_mode([screen_width, screen_height])'''
 
         self.collideApple(apple)
 
@@ -137,15 +159,26 @@ class Apple():
         self.color = color
 
     def newPos(self, snake):
-        print()
+        global LOST
+        #print()
+        start_time = getMs()
+        invalid_pos = snake.tail.copy()
         while True:
+            #print()
+            #print(len(invalid_pos)-len(snake.tail))
             new_pos = [(int)(random.random()*RELSIZE[0]), (int)(random.random()*RELSIZE[1])]
-            while new_pos in snake.tail:
+            while new_pos in invalid_pos:
+                #print('no')
                 new_pos = [(int)(random.random()*RELSIZE[0]), (int)(random.random()*RELSIZE[1])]
+
             self.pos = new_pos
+            invalid_pos.append(new_pos)
 
             if simulateSnake(snake, self):
                 break
+            if getMs() - start_time >= 1:
+                break
+        #print(len(invalid_pos) - len(snake.tail))
 
     def draw(self, surf):
         pygame.draw.rect(surf, self.color, (self.pos[0]*SCALE[0], self.pos[1]*SCALE[1], SCALE[0], SCALE[1]))
@@ -159,7 +192,7 @@ def tint(surf, tint_color):
     return surf
 
 def main():
-    global d_time, world_speed, LOST
+    global d_time, world_speed, LOST, screenf
 
     pygame.init()
     clock = pygame.time.Clock()
@@ -185,6 +218,8 @@ def main():
     snake = Snake([0,0], (0,255,0))
 
     move = -1
+
+    transparent = pygame.Surface((screen_width,screen_height), pygame.SRCALPHA)
 
     while game_run:
         '''if self.direction == 0:
@@ -214,7 +249,10 @@ def main():
         #print(getMs() - last_time)
         if getMs() - last_time >= 0.0:
             #print(move)
+            #transparent.blit(screenf, (0,0))
+            #transparent.set_alpha(253)
             screenf.fill(0)
+            #screenf.blit(transparent, (0,0))
 
             if not LOST:
                 textSurf = myfont.render(f'Score: {snake.score}', True, (0,255,0))
@@ -223,20 +261,21 @@ def main():
             else:
                 textSurf = myfont.render(f'Score: {snake.score}', True, (0,255,0))
                 screenf.blit(textSurf, ( int(screen_width/2 - textSurf.get_size()[0]/2), 0 ))
-                textSurf = myfont.render('Gamer Over', True, (0,255,0))
+                textSurf = myfont.render('Game Over', True, (0,255,0))
                 screenf.blit(textSurf, ( int(screen_width/2 - textSurf.get_size()[0]/2), int(screen_height/2 - textSurf.get_size()[1]/2) ))
+            
             snake.draw(screenf)
             apple.draw(screenf)
 
-            d_time = (time.time_ns() - last_time)/target_fps
+            #d_time = (time.time_ns() - last_time)/target_fps
             last_time = getMs()
 
             if LOST:
                 pygame.display.flip()
-                time.sleep(100)
+                time.sleep(1.5)
                 LOST = False
                 apple = Apple((255,0,0))
-                snake = Snake([0,0], (0,255,0))
+                snake = Snake(snake.pos, (0,255,0))
 
             move = -1
         pygame.display.flip()
